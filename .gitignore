@@ -1,0 +1,29 @@
+# Autor: zon07
+
+# Игнорировать ВСЁ в build/
+build/*
+
+# Но НЕ игнорировать папку Debug внутри build/
+!build/Debug/
+
+# Игнорировать ВСЁ в build/Debug/...
+build/Debug/*
+
+# ...кроме файлов .elf и .map
+!build/Debug/*.elf
+!build/Debug/*.map
+
+# Игнорируем сгенерированные файлы CubeIDE
+*.launch
+.project
+.cproject
+.settings/
+
+# Игнорируем временные файлы
+*.swp
+*~
+*.bak
+*.tmp
+
+# Игнорируем пользовательские настройки
+.vscode/
