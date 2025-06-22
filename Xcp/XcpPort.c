@@ -8,42 +8,46 @@
 #include "XcpPort.h"
 #include "string.h"
 
-/* Чтобы добавить новое событие, нужно добавить соответствующие
- * строчки в массивы ниже: */
+#include "cmsis_os2.h"
 
-/* Имя события */
+osMessageQueueId_t xcpCanTxQueueHandle;
+
+/* пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+ * пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ: */
+
+/* пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 V_MEMROM0 static vuint8 MEMORY_ROM kXcpEventName_0[] = "10ms";
 V_MEMROM0 static vuint8 MEMORY_ROM kXcpEventName_1[] = "100ms";
 
-/* Массив с именами событий */
+/* пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 V_MEMROM0 MEMORY_ROM vuint8* MEMORY_ROM kXcpEventName[] =
 {
 	&kXcpEventName_0[0],
 	&kXcpEventName_1[0]
 };
 
-/* Длина имени события (количество символов в имени) */
+/* пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ) */
 V_MEMROM0 vuint8 MEMORY_ROM kXcpEventNameLength[] =
 {
 	sizeof(kXcpEventName_0) - 1U,
 	sizeof(kXcpEventName_1) - 1U
 };
 
-/* Период события в циклах */
+/* пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ */
 V_MEMROM0 vuint8 MEMORY_ROM kXcpEventCycle[] =
 {
 	10U,
 	100U
 };
 
-/* Событие */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 V_MEMROM0 V_MEMROM1 vuint8 V_MEMROM2 kXcpEventUnit[] =
 {
     (vuint8)DAQ_TIMESTAMP_UNIT_10MS,
     (vuint8)DAQ_TIMESTAMP_UNIT_100MS
 };
 
-/* Направление передачи данных события */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ */
 #define kXcpEventDirectionDaq	  (0x04U)
 #define kXcpEventDirectionStim    (0x08U)
 
@@ -65,29 +69,29 @@ V_MEMROM0 vuint8 MEMORY_ROM kXcpEventDirection[] =
 
 /* Receive handler */
 /* Handle transmission done */
-void XcpMessageHandler(const CanMessage *rxMsg)
+void XcpMessageHandler(const CAN_Msg_t *rxMsg)
 {
-    if(rxMsg->id == XCP_CAN_ID_RX)
+    if(rxMsg->ID == XCP_CAN_ID_RX && rxMsg->Extended == XCP_IS_CAN_ID_EXTENDED)
     {
-		XcpCommand((uint32_t*)&rxMsg->data);
+		XcpCommand((uint32_t*)&rxMsg->Data);
     }
 }
 
 /* Transmit message */
 void ApplXcpSend(vuint8 len, MEMORY_ROM BYTEPTR msg)
 {
-	CanMessage txMsg;
+	CAN_Msg_t txMsg = {0};
 
-    /* Message prepare */
-	txMsg.id = XCP_CAN_ID_TX;
-	txMsg.length = len;
-	
-	memcpy(txMsg.data, msg, len);
+	/* Message prepare */
+	txMsg.Extended = 0;
+	txMsg.ID = XCP_CAN_ID_TX;
+	txMsg.Length = len;
 
-    /* Put message */
-	Can1::send(&txMsg);
+	memcpy(txMsg.Data, msg, len);
 
-    /* Сообщаем движку XCP об успешной отправке сообщения */
+    /* Put message in queue */
+    osMessageQueuePut(xcpCanTxQueueHandle, &txMsg, 0, 0);
+
     XcpSendCallBack();
 }
 

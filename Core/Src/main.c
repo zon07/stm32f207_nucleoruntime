@@ -54,6 +54,8 @@ void SystemClock_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 
+void CAN1_Filter_AcceptAll(void);
+void CAN2_Filter_AcceptAll(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -94,6 +96,15 @@ int main(void)
   MX_CAN1_Init();
   MX_CAN2_Init();
   /* USER CODE BEGIN 2 */
+  CAN1_Filter_AcceptAll();
+  CAN2_Filter_AcceptAll();
+
+  if (HAL_CAN_Start(&hcan1) != HAL_OK || HAL_CAN_Start(&hcan2) != HAL_OK) {
+      Error_Handler();
+  }
+
+  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_RX_FIFO1_MSG_PENDING | CAN_IT_TX_MAILBOX_EMPTY | CAN_IT_ERROR);
+  HAL_CAN_ActivateNotification(&hcan2, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_RX_FIFO1_MSG_PENDING | CAN_IT_TX_MAILBOX_EMPTY | CAN_IT_ERROR);
 
   /* USER CODE END 2 */
 
@@ -160,7 +171,49 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void CAN1_Filter_AcceptAll(void) {
+    CAN_FilterTypeDef canFilterConfig;
 
+    // Фильтр для CAN1 FIFO0 (банк 0)
+    canFilterConfig.FilterBank = 0;
+    canFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+    canFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+    canFilterConfig.FilterIdHigh = 0x0000;
+    canFilterConfig.FilterIdLow = 0x0000;
+    canFilterConfig.FilterMaskIdHigh = 0x0000;
+    canFilterConfig.FilterMaskIdLow = 0x0000;
+    canFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+    canFilterConfig.FilterActivation = ENABLE;
+    canFilterConfig.SlaveStartFilterBank = 14;  // Важно для CAN2!
+    HAL_CAN_ConfigFilter(&hcan1, &canFilterConfig);
+
+    // Фильтр для CAN1 FIFO1 (банк 1)
+    canFilterConfig.FilterBank = 1;
+    canFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO1;
+    HAL_CAN_ConfigFilter(&hcan1, &canFilterConfig);
+}
+
+void CAN2_Filter_AcceptAll(void) {
+    CAN_FilterTypeDef canFilterConfig;
+
+    // Фильтр для CAN2 FIFO0 (банк 14)
+    canFilterConfig.FilterBank = 14;  // Первый банк CAN2!
+    canFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+    canFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+    canFilterConfig.FilterIdHigh = 0x0000;
+    canFilterConfig.FilterIdLow = 0x0000;
+    canFilterConfig.FilterMaskIdHigh = 0x0000;
+    canFilterConfig.FilterMaskIdLow = 0x0000;
+    canFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+    canFilterConfig.FilterActivation = ENABLE;
+    canFilterConfig.SlaveStartFilterBank = 14;  // Для CAN2 не играет роли, но должно быть >=14
+    HAL_CAN_ConfigFilter(&hcan2, &canFilterConfig);
+
+    // Фильтр для CAN2 FIFO1 (банк 15)
+    canFilterConfig.FilterBank = 15;
+    canFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO1;
+    HAL_CAN_ConfigFilter(&hcan2, &canFilterConfig);
+}
 /* USER CODE END 4 */
 
 /**

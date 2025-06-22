@@ -8,11 +8,11 @@
 #include "XcpConfig.h"
 #include "stdarg.h"
 /* MCU depends */
-#include "lib_dbk-10-AT32F437.h"
+#include "canMsgs.h"
 
-#define XCP_CAN_ID_RX				   (0x333)		/* ������������� ��� ����������� XCP ������� */
-#define XCP_CAN_ID_TX		 		   (0x444)		/* ������������� ��� ��������� XCP ������� */
-#define XCP_IS_CAN_ID_EXTENDED		 	(0UL)		/* ��� ��������� ���������� ������� ���������� - 1UL */
+#define XCP_CAN_ID_RX				    (0x555)		/* ������������� ��� ����������� XCP ������� */
+#define XCP_CAN_ID_TX		 		    (0x777)		/* ������������� ��� ��������� XCP ������� */
+#define XCP_IS_CAN_ID_EXTENDED		    (0UL)		/* ��� ��������� ���������� ������� ���������� - 1UL */
 
 /* Events */
 #define XcpEventChannel_10msEvent_1     (0UL)
@@ -24,6 +24,6 @@ extern V_MEMROM1 vuint8 V_MEMROM2 kXcpEventCycle[];
 extern V_MEMROM1 vuint8 V_MEMROM2 kXcpEventUnit[];
 extern V_MEMROM1 vuint8 V_MEMROM2 kXcpEventDirection[];
 
-void XcpMessageHandler(const CanMessage *rxMsg);
+void XcpMessageHandler(const CAN_Msg_t *rxMsg);
 
 #endif
