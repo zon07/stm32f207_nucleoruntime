@@ -174,21 +174,27 @@ void SystemClock_Config(void)
 void CAN1_Filter_AcceptAll(void) {
     CAN_FilterTypeDef canFilterConfig;
 
-    // Фильтр для CAN1 FIFO0 (банк 0)
+    // Фильтр для CAN1 FIFO0 (расширенные идентификаторы - ExtID)
     canFilterConfig.FilterBank = 0;
     canFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
     canFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+    // Для ExtID: бит IDE (bit 2) должен быть 1
     canFilterConfig.FilterIdHigh = 0x0000;
-    canFilterConfig.FilterIdLow = 0x0000;
+    canFilterConfig.FilterIdLow = 0x0004; // IDE bit set (0x4)
     canFilterConfig.FilterMaskIdHigh = 0x0000;
-    canFilterConfig.FilterMaskIdLow = 0x0000;
+    canFilterConfig.FilterMaskIdLow = 0x0004; // Проверяем только бит IDE
     canFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
     canFilterConfig.FilterActivation = ENABLE;
     canFilterConfig.SlaveStartFilterBank = 14;  // Важно для CAN2!
     HAL_CAN_ConfigFilter(&hcan1, &canFilterConfig);
 
-    // Фильтр для CAN1 FIFO1 (банк 1)
+    // Фильтр для CAN1 FIFO1 (стандартные идентификаторы - StdID)
     canFilterConfig.FilterBank = 1;
+    // Для StdID: бит IDE (bit 2) должен быть 0
+    canFilterConfig.FilterIdHigh = 0x0000;
+    canFilterConfig.FilterIdLow = 0x0000; // IDE bit clear (0x0)
+    canFilterConfig.FilterMaskIdHigh = 0x0000;
+    canFilterConfig.FilterMaskIdLow = 0x0004; // Проверяем только бит IDE
     canFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO1;
     HAL_CAN_ConfigFilter(&hcan1, &canFilterConfig);
 }

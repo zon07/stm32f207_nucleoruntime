@@ -54,7 +54,7 @@ vuint8 xcpResource;
 
 void ApplXcpInit(void)
 {
-	/* Вызвать функцию can_init */
+	/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ can_init */
 	#if defined(XCP_ENABLE_TESTMODE)
 	ApplXcpPrint("Start test mode\n\r");
 	#endif
@@ -522,7 +522,7 @@ vuint8 ApplXcpUnlock( const vuint8 *key, const vuint8 length )
 | DESCRIPTION:      Returns a pointer to a pointer of MAP file names
 ******************************************************************************/
 
-#define ASCII_STRING	("bu-702")
+#define ASCII_STRING	("stm32f207")
 
 const vuint8 asciiString[] = ASCII_STRING;
 const vuint8 asamName[] = ASCII_STRING;

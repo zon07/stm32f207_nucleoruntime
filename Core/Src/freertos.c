@@ -29,6 +29,7 @@
 #include "XcpBasic.h"
 #include "XcpPort.h"
 
+#include <string.h>
 #include "can.h"
 
 /* USER CODE END Includes */
@@ -60,19 +61,19 @@ CanStats can2Stats;
 
 
 /* USER CODE END Variables */
-/* Definitions for canRxTask */
-osThreadId_t canRxTaskHandle;
-const osThreadAttr_t canRxTask_attributes = {
-  .name = "canRxTask",
-  .stack_size = 512 * 4,
-  .priority = (osPriority_t) osPriorityHigh,
-};
-/* Definitions for canTxTask */
-osThreadId_t canTxTaskHandle;
-const osThreadAttr_t canTxTask_attributes = {
-  .name = "canTxTask",
+/* Definitions for can1_TxTask */
+osThreadId_t can1_TxTaskHandle;
+const osThreadAttr_t can1_TxTask_attributes = {
+  .name = "can1_TxTask",
   .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityAboveNormal,
+};
+/* Definitions for can2_TxTaskHandle */
+osThreadId_t can2_TxTaskHandle;
+const osThreadAttr_t can2_TxTask_attributes = {
+  .name = "can2_TxTask",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityHigh,
 };
 /* Definitions for appTask */
 osThreadId_t appTaskHandle;
@@ -88,16 +89,6 @@ const osThreadAttr_t canXcpTask_attributes = {
   .stack_size = 1024 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for can1_rx_queue */
-osMessageQueueId_t can1_rx_queueHandle;
-const osMessageQueueAttr_t can1_rx_queue_attributes = {
-  .name = "can1_rx_queue "
-};
-/* Definitions for can2_rx_queue */
-osMessageQueueId_t can2_rx_queueHandle;
-const osMessageQueueAttr_t can2_rx_queue_attributes = {
-  .name = "can2_rx_queue "
-};
 /* Definitions for appCan1RxQueue */
 osMessageQueueId_t appCan1RxQueueHandle;
 const osMessageQueueAttr_t appCan1RxQueue_attributes = {
@@ -107,6 +98,11 @@ const osMessageQueueAttr_t appCan1RxQueue_attributes = {
 osMessageQueueId_t appCan2RxQueueHandle;
 const osMessageQueueAttr_t appCan2RxQueue_attributes = {
   .name = "appCan2RxQueue"
+};
+/* Definitions for xcpCanRxQueue */
+osMessageQueueId_t xcpCanRxQueueHandle;
+const osMessageQueueAttr_t xcpCanRxQueue_attributes = {
+  .name = "xcpCanRxQueue"
 };
 /* Definitions for appCan1TxQueue */
 osMessageQueueId_t appCan1TxQueueHandle;
@@ -118,25 +114,17 @@ osMessageQueueId_t appCan2TxQueueHandle;
 const osMessageQueueAttr_t appCan2TxQueue_attributes = {
   .name = "appCan2TxQueue"
 };
-/* Definitions for xcpCanRxQueue */
-osMessageQueueId_t xcpCanRxQueueHandle;
-const osMessageQueueAttr_t xcpCanRxQueue_attributes = {
-  .name = "xcpCanRxQueue"
-};
-/* Definitions for xcpCanTxQueue */
-osMessageQueueId_t xcpCanTxQueueHandle;
-const osMessageQueueAttr_t xcpCanTxQueue_attributes = {
-  .name = "xcpCanTxQueue"
-};
+
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-HAL_StatusTypeDef CAN_SendMessage(CAN_HandleTypeDef *hcan, const CAN_Msg_t *msg, uint32_t timeout_ms);
+HAL_StatusTypeDef CAN_SendMessage(CAN_HandleTypeDef *hcan, const CAN_Msg_t *msg);
+void ProcessCanToQueue(CAN_HandleTypeDef *hcan, uint8_t fifo, osMessageQueueId_t queue);
 
 /* USER CODE END FunctionPrototypes */
 
-void StartCanRxTask(void *argument);
-void StartCanTxTask(void *argument);
+void StartCan1_TxTask(void *argument);
+void StartCan2_TxTask(void *argument);
 void StartAppTask(void *argument);
 void StartCanXcpTask(void *argument);
 
@@ -165,12 +153,6 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the queue(s) */
-  /* creation of can1_rx_queue */
-  can1_rx_queueHandle = osMessageQueueNew (16, sizeof(CAN_Msg_t), &can1_rx_queue_attributes);
-
-  /* creation of can2_rx_queue */
-  can2_rx_queueHandle = osMessageQueueNew (16, sizeof(CAN_Msg_t), &can2_rx_queue_attributes);
-
   /* creation of appCan1RxQueue */
   appCan1RxQueueHandle = osMessageQueueNew (16, sizeof(CAN_Msg_t), &appCan1RxQueue_attributes);
 
@@ -186,19 +168,16 @@ void MX_FREERTOS_Init(void) {
   /* creation of xcpCanRxQueue */
   xcpCanRxQueueHandle = osMessageQueueNew (16, sizeof(CAN_Msg_t), &xcpCanRxQueue_attributes);
 
-  /* creation of xcpCanTxQueue */
-  xcpCanTxQueueHandle = osMessageQueueNew (128, sizeof(CAN_Msg_t), &xcpCanTxQueue_attributes);
-
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
   /* creation of canRxTask */
-  canRxTaskHandle = osThreadNew(StartCanRxTask, NULL, &canRxTask_attributes);
+  can2_TxTaskHandle = osThreadNew(StartCan2_TxTask, NULL, &can2_TxTask_attributes);
 
   /* creation of canTxTask */
-  canTxTaskHandle = osThreadNew(StartCanTxTask, NULL, &canTxTask_attributes);
+  can1_TxTaskHandle = osThreadNew(StartCan1_TxTask, NULL, &can1_TxTask_attributes);
 
   /* creation of appTask */
   appTaskHandle = osThreadNew(StartAppTask, NULL, &appTask_attributes);
@@ -216,34 +195,16 @@ void MX_FREERTOS_Init(void) {
 
 }
 
-/* USER CODE BEGIN Header_StartCanRxTask */
-/**
-  * @brief  Function implementing the canRxTask thread.
-  * @param  argument: Not used
-  * @retval None
-  */
-/* USER CODE END Header_StartCanRxTask */
-void StartCanRxTask(void *argument)
-{
-  /* USER CODE BEGIN StartCanRxTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StartCanRxTask */
-}
-
-/* USER CODE BEGIN Header_StartCanTxTask */
+/* USER CODE BEGIN Header_StartCan1_TxTask */
 /**
 * @brief Function implementing the canTxTask thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartCanTxTask */
-void StartCanTxTask(void *argument)
+/* USER CODE END Header_StartCan1_TxTask */
+void StartCan1_TxTask(void *argument)
 {
-  /* USER CODE BEGIN StartCanTxTask */
+  /* USER CODE BEGIN StartCan1_TxTask */
   CAN_Msg_t txMsg;
   CAN_TxHeaderTypeDef TxHeader;
   uint32_t TxMailbox;
@@ -251,28 +212,41 @@ void StartCanTxTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-
-    // Обработка очереди XCP (CAN1)
-    while (osMessageQueueGet(xcpCanTxQueueHandle, &txMsg, NULL, 0) == osOK)
-    {
-      CAN_SendMessage(&hcan1, &txMsg, 10);
-    }
-
     // Обработка очереди APP (CAN1)
-    while(osMessageQueueGet(appCan1TxQueueHandle, &txMsg, NULL, 0) == osOK)
+    if(osMessageQueueGet(appCan1TxQueueHandle, &txMsg, NULL, 0) == osOK)
     {
-      CAN_SendMessage(&hcan1, &txMsg, 10);
+      CAN_SendMessage(&hcan1, &txMsg);
     }
-
-    // Обработка очереди APP (CAN2)
-    while(osMessageQueueGet(appCan2TxQueueHandle, &txMsg, NULL, 0) == osOK)
-    {
-      CAN_SendMessage(&hcan2, &txMsg, 10);
-    }
-
     osDelay(1);
   }
-  /* USER CODE END StartCanTxTask */
+  /* USER CODE END StartCan1_TxTask */
+}
+
+/* USER CODE BEGIN Header_StartCan2_TxTask */
+/**
+  * @brief  Function implementing the canRxTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartCan2_TxTask */
+void StartCan2_TxTask(void *argument)
+{
+  /* USER CODE BEGIN StartCan2_TxTask */
+  CAN_Msg_t txMsg;
+  CAN_TxHeaderTypeDef TxHeader;
+  uint32_t TxMailbox;
+
+  /* Infinite loop */
+  for(;;)
+  {
+        // Обработка очереди APP (CAN2)
+    if(osMessageQueueGet(appCan2TxQueueHandle, &txMsg, NULL, 0) == osOK)
+    {
+      CAN_SendMessage(&hcan2, &txMsg);
+    }
+    osDelay(1);
+  }
+  /* USER CODE END StartCan2_TxTask */
 }
 
 /* USER CODE BEGIN Header_StartAppTask */
@@ -285,14 +259,61 @@ void StartCanTxTask(void *argument)
 void StartAppTask(void *argument)
 {
   /* USER CODE BEGIN StartAppTask */
-  const uint32_t interval = MS_TO_TICKS(10); // 10 мс в тиках
-  uint32_t tick = osKernelGetTickCount(); 
+  const uint32_t interval_10ms = MS_TO_TICKS(10);  // 10 мс интервал
+  const uint32_t interval_1000ms = MS_TO_TICKS(1000); // 1000 мс интервал
+  uint32_t tick = osKernelGetTickCount();
+  uint32_t last_1000ms_tick = tick;
+  
   /* Infinite loop */
   for(;;)
   {
+    CAN_Msg_t txMsg = {0};
 
-    // Жёсткая периодичность 10 мс
-    tick += interval;
+    /* Основное сообщение (каждые 10 мс) */
+    txMsg.Extended = 1;
+    txMsg.ID = 0x18FEFF03;
+    txMsg.Length = 8;
+    txMsg.Data[0] = 0x01;
+    txMsg.Data[1] = 0x02;
+    txMsg.Data[2] = 0x03;
+    txMsg.Data[3] = 0x04;
+    txMsg.Data[4] = 0x05;
+    txMsg.Data[5] = 0x06;
+    txMsg.Data[6] = 0x07;
+    txMsg.Data[7] = 0x08;
+
+    /* Отправка сообщения */
+    osMessageQueuePut(appCan1TxQueueHandle, &txMsg, 0, 0);
+    osMessageQueuePut(appCan2TxQueueHandle, &txMsg, 0, 0);
+
+    /* Дополнительная логика каждые 1000 мс */
+    uint32_t current_tick = osKernelGetTickCount();
+    if(current_tick - last_1000ms_tick >= interval_1000ms)
+    {
+      last_1000ms_tick = current_tick;
+      
+      // Здесь можно добавить специальное сообщение для 1000 мс интервала
+      CAN_Msg_t txMsg1000ms = {0};
+      txMsg1000ms.Extended = 1;
+      txMsg1000ms.ID = 0x18FEFF04; // Другой ID для 1000 мс сообщения
+      txMsg1000ms.Length = 8;
+      txMsg1000ms.Data[7] = 0x01;
+      txMsg1000ms.Data[6] = 0x02;
+      txMsg1000ms.Data[5] = 0x03;
+      txMsg1000ms.Data[4] = 0x04;
+      txMsg1000ms.Data[3] = 0x05;
+      txMsg1000ms.Data[2] = 0x06;
+      txMsg1000ms.Data[1] = 0x07;
+      txMsg1000ms.Data[0] = 0x08;
+
+      osMessageQueuePut(appCan1TxQueueHandle, &txMsg1000ms, 0, 0);
+      osMessageQueuePut(appCan2TxQueueHandle, &txMsg1000ms, 0, 0);
+      HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+      
+    }
+
+    /* Жёсткая периодичность 10 мс */
+    tick += interval_10ms;
     osDelayUntil(tick);
   }
   /* USER CODE END StartAppTask */
@@ -307,28 +328,36 @@ void StartAppTask(void *argument)
 /* USER CODE END Header_StartCanXcpTask */
 void StartCanXcpTask(void *argument)
 {
-  CAN_Msg_t rxMsg;
-  const uint32_t interval = MS_TO_TICKS(10); // 10 мс в тиках
-  uint32_t tick = osKernelGetTickCount(); 
+    CAN_Msg_t rxMsg;
+    const uint32_t interval = MS_TO_TICKS(10); // 10 мс в тиках
+    uint32_t tick = osKernelGetTickCount();
+    const uint8_t maxMessagesPerCycle = 10; // Максимум сообщений за цикл
 
-  XcpInit();
-  ApplXcpInit();
+    XcpInit();
+    uint32_t tick_100ms = osKernelGetTickCount();
 
-  for(;;)
-  {
-    // Обработка всех сообщений в очереди
-    while(osMessageQueueGet(xcpCanRxQueueHandle, &rxMsg, NULL, 0) == osOK)
-    {
-      XcpMessageHandler(&rxMsg);
+    for (;;) {
+        // Обработка CAN-сообщений с ограничением
+        uint8_t processedMessages = 0;
+        while (processedMessages < maxMessagesPerCycle && 
+               osMessageQueueGet(xcpCanRxQueueHandle, &rxMsg, NULL, 0) == osOK) {
+            XcpMessageHandler(&rxMsg);
+            processedMessages++;
+        }
+
+        // 10 мс событие
+        XcpEvent(XcpEventChannel_10msEvent_1);
+
+        // 100 мс событие (раз в 100 мс)
+        if (osKernelGetTickCount() - tick_100ms >= MS_TO_TICKS(100)) {
+            XcpEvent(XcpEventChannel_100msEvent_1);
+            tick_100ms = osKernelGetTickCount();
+        }
+
+        // Задержка
+        tick += interval;
+        osDelayUntil(tick);
     }
-    
-    XcpEvent(XcpEventChannel_10msEvent_1);
-    XcpBackground();
-    
-    // Жёсткая периодичность 10 мс
-    tick += interval;
-    osDelayUntil(tick);
-  }
 }
 
 /* Private application code --------------------------------------------------*/
@@ -339,12 +368,11 @@ void StartCanXcpTask(void *argument)
   * @param hcan Указатель на структуру CAN_HandleTypeDef
   * @param msg Структура с данными сообщения (ID, Extended, Length, Data)
   * @param timeout_ms Таймаут ожидания свободного ящика в миллисекундах
-  * @return HAL_StatusTypeDef Результат операции (HAL_OK, HAL_ERROR или HAL_TIMEOUT)
+  * @return
   */
-HAL_StatusTypeDef CAN_SendMessage(CAN_HandleTypeDef *hcan, const CAN_Msg_t *msg, uint32_t timeout_ms)
+HAL_StatusTypeDef CAN_SendMessage(CAN_HandleTypeDef *hcan, const CAN_Msg_t *msg)
 {
     CAN_TxHeaderTypeDef TxHeader;
-    uint32_t start_tick = osKernelGetTickCount();
     
     // Настройка заголовка CAN сообщения
     TxHeader.IDE = msg->Extended ? CAN_ID_EXT : CAN_ID_STD;
@@ -355,10 +383,8 @@ HAL_StatusTypeDef CAN_SendMessage(CAN_HandleTypeDef *hcan, const CAN_Msg_t *msg,
     TxHeader.TransmitGlobalTime = DISABLE;
 
     // Ожидание свободного почтового ящика
-    while (HAL_CAN_GetTxMailboxesFreeLevel(hcan) == 0) {
-        if (osKernelGetTickCount() - start_tick > timeout_ms) {
-            return HAL_TIMEOUT;
-        }
+    while (HAL_CAN_GetTxMailboxesFreeLevel(hcan) == 0)
+    {
         osDelay(1);
     }
 
@@ -366,6 +392,54 @@ HAL_StatusTypeDef CAN_SendMessage(CAN_HandleTypeDef *hcan, const CAN_Msg_t *msg,
     return HAL_CAN_AddTxMessage(hcan, &TxHeader, msg->Data, NULL);
 }
 
+// Общая функция для обработки CAN сообщений и помещения в очередь
+void ProcessCanToQueue(CAN_HandleTypeDef *hcan, uint8_t fifo, osMessageQueueId_t queue) 
+{
+    CAN_RxHeaderTypeDef rxHeader;
+    uint8_t rxData[8];
+    CAN_Msg_t canMsg;
+    
+    if (HAL_CAN_GetRxMessage(hcan, fifo, &rxHeader, rxData) == HAL_OK)
+    {
+        // Заполняем структуру CAN_Msg_t
+        canMsg.Extended = (rxHeader.IDE == CAN_ID_EXT);
+        canMsg.ID = canMsg.Extended ? rxHeader.ExtId : rxHeader.StdId;
+        canMsg.Length = rxHeader.DLC;
+        memcpy(canMsg.Data, rxData, 8);
+        canMsg.Timestamp = HAL_GetTick();
+        
+        // Отправляем в очередь (без ожидания)
+        osMessageQueuePut(queue, &canMsg, 0, 0);
+    }
+}
+
+
+// Обработчик для CAN1 FIFO0 -> appCan1RxQueueHandle
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+    if (hcan == &hcan1)
+    {
+        ProcessCanToQueue(hcan, CAN_RX_FIFO0, appCan1RxQueueHandle);
+    }
+    else if (hcan == &hcan2)
+    {
+        ProcessCanToQueue(hcan, CAN_RX_FIFO0, appCan2RxQueueHandle);
+    }
+}
+
+// Обработчик для CAN1 FIFO1 -> xcpCanRxQueueHandle
+// Обработчик для CAN2 FIFO1 -> appCan2RxQueueHandle
+void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+    if (hcan == &hcan1)
+    {
+        ProcessCanToQueue(hcan, CAN_RX_FIFO1, xcpCanRxQueueHandle);
+    }
+    else if (hcan == &hcan2)
+    {
+        ProcessCanToQueue(hcan, CAN_RX_FIFO1, appCan2RxQueueHandle);
+    }
+}
 
 
 // Вызывается при успешной отправке сообщения из почтового ящика

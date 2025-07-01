@@ -10,7 +10,7 @@
 
 #include "cmsis_os2.h"
 
-osMessageQueueId_t xcpCanTxQueueHandle;
+extern osMessageQueueId_t appCan1TxQueueHandle;
 
 /* ����� �������� ����� �������, ����� �������� ���������������
  * ������� � ������� ����: */
@@ -90,7 +90,7 @@ void ApplXcpSend(vuint8 len, MEMORY_ROM BYTEPTR msg)
 	memcpy(txMsg.Data, msg, len);
 
     /* Put message in queue */
-    osMessageQueuePut(xcpCanTxQueueHandle, &txMsg, 0, 0);
+    osMessageQueuePut(appCan1TxQueueHandle, &txMsg, 0, 0);
 
     XcpSendCallBack();
 }
