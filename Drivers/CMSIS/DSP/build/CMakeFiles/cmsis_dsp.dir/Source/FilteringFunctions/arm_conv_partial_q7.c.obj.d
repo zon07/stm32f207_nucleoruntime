@@ -1,0 +1,30 @@
+CMakeFiles/cmsis_dsp.dir/Source/FilteringFunctions/arm_conv_partial_q7.c.obj: \
+ C:\Users\Olga\Desktop\EvgeniiWork\gitRepos\builds\stm32f207_board\Stm32F207_NucleoRuntime\Drivers\CMSIS\DSP\Source\FilteringFunctions\arm_conv_partial_q7.c \
+ C:/Users/Olga/Desktop/EvgeniiWork/gitRepos/builds/stm32f207_board/Stm32F207_NucleoRuntime/Drivers/CMSIS/DSP/Include/arm_math.h \
+ c:\users\olga\desktop\evgeniiwork\gitrepos\builds\stm32f207_board\stm32f207_nucleoruntime\drivers\cmsis\include\core_cm3.h \
+ c:\gnuarm\10.2021.10\lib\gcc\arm-none-eabi\10.3.1\include\stdint.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\stdint.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\machine\_default_types.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\sys\features.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\_newlib_version.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\sys\_intsup.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\sys\_stdint.h \
+ c:\users\olga\desktop\evgeniiwork\gitrepos\builds\stm32f207_board\stm32f207_nucleoruntime\drivers\cmsis\include\cmsis_version.h \
+ c:\users\olga\desktop\evgeniiwork\gitrepos\builds\stm32f207_board\stm32f207_nucleoruntime\drivers\cmsis\include\cmsis_compiler.h \
+ c:\users\olga\desktop\evgeniiwork\gitrepos\builds\stm32f207_board\stm32f207_nucleoruntime\drivers\cmsis\include\cmsis_gcc.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\string.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\_ansi.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\newlib.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\sys\config.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\machine\ieeefp.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\sys\reent.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\_ansi.h \
+ c:\gnuarm\10.2021.10\lib\gcc\arm-none-eabi\10.3.1\include\stddef.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\sys\_types.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\machine\_types.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\sys\lock.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\sys\cdefs.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\sys\_locale.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\strings.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\sys\string.h \
+ c:\gnuarm\10.2021.10\arm-none-eabi\include\math.h

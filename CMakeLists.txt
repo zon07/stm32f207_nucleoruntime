@@ -40,10 +40,13 @@ add_executable(${CMAKE_PROJECT_NAME})
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
 
+
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths
+    ${CMAKE_SOURCE_DIR}/libs
 )
+
 
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
@@ -51,17 +54,28 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ./Xcp/XcpApplication.c
     ./Xcp/XcpBasic.c
     ./Xcp/XcpPort.c
+    # Добавляем исходники CMSIS-DSP
+    ${CMSIS_DSP_SOURCES}
+    ./SimulinkApp/codeGen/stm32f207_template_app_ert_rtw/simulink_app.c
+    ./SimulinkApp/codeGen/stm32f207_template_app_ert_rtw/stm32f207_template_app.c
+    ./SimulinkApp/otherFiles/led_control.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     ./Xcp/
+        # Добавляем путь к PrivateInclude CMSIS-DSP
+    ./Drivers/CMSIS/DSP/Include
+    ./SimulinkApp/codeGen/stm32f207_template_app_ert_rtw
+    ./SimulinkApp/codeGen/slprj/ert/_sharedutils
+    ./SimulinkApp/otherFiles
 )
 
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined symbols
+    ARM_MATH_CM3  # Для CMSIS-DSP
 )
 
 # Генерация .hex и .bin файлов
@@ -83,6 +97,6 @@ add_custom_command(
 # Add linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
-
+    cmsis_dsp
     # Add user defined libraries
 )

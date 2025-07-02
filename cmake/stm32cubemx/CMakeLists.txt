@@ -9,6 +9,7 @@ enable_language(C ASM)
 target_compile_definitions(stm32cubemx INTERFACE 
 	USE_HAL_DRIVER 
 	STM32F207xx
+    ARM_MATH_CM3  # Для CMSIS-DSP
     $<$<CONFIG:Debug>:DEBUG>
 )
 
@@ -21,6 +22,7 @@ target_include_directories(stm32cubemx INTERFACE
     ../../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM3
     ../../Drivers/CMSIS/Device/ST/STM32F2xx/Include
     ../../Drivers/CMSIS/Include
+    ../../Drivers/CMSIS/DSP/Include
 )
 
 target_sources(stm32cubemx INTERFACE
