@@ -40,7 +40,8 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 typedef struct {
-    uint32_t sentCount;
+    uint32_t txCount;
+    uint32_t rxCount;
     uint32_t errorCount;
 } CanStats;
 
@@ -280,78 +281,8 @@ void StartAppTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
+    /* Шаг функции Simulink */
     simulink_app_step();
-
-    CAN_Msg_t txMsg = {0};
-
-    /* Генерация RPM (0..8031.875) с помощью CMSIS-DSP */
-    float32_t rpm = RPM_MAX * (arm_sin_f32(phase) + 1.0f) * 0.5f;
-    phase += PHASE_STEP;
-    if(phase >= 2.0f * PI) phase -= 2.0f * PI;
-    
-    // Преобразование в 16-битное значение с множителем 0.125
-    uint16_t rpm_encoded = (uint16_t)(rpm / 0.125f);
-
-    /* Основное сообщение (каждые 10 мс) */
-    txMsg.Extended = 1;
-    txMsg.ID = 0xCF004FE;
-    txMsg.Length = 8;
-    txMsg.Data[0] = 0x01;
-    txMsg.Data[1] = 0x02;
-    txMsg.Data[2] = 0x03;
-    txMsg.Data[3] = rpm_encoded & 0xFF;        // LSB
-    txMsg.Data[4] = (rpm_encoded >> 8) & 0xFF;  // MSB
-    txMsg.Data[5] = 0x06;
-    txMsg.Data[6] = 0x07;
-    txMsg.Data[7] = 0x08;
-
-    /* Отправка сообщения */
-    osMessageQueuePut(appCan1TxQueueHandle, &txMsg, 0, 0);
-    osMessageQueuePut(appCan2TxQueueHandle, &txMsg, 0, 0);
-
-    /* Дополнительная логика каждые 1000 мс */
-    uint32_t current_tick = osKernelGetTickCount();
-    if(current_tick - last_100ms_tick >= interval_100ms)
-    {
-      last_100ms_tick = current_tick;
-            // Здесь можно добавить специальное сообщение для 1000 мс интервала
-      CAN_Msg_t txMsg100ms = {0};
-      txMsg100ms.Extended = 1;
-      txMsg100ms.ID = 0x18EE0021; // Другой ID для 1000 мс сообщения
-      txMsg100ms.Length = 8;
-      txMsg100ms.Data[7] = 0x01;
-      txMsg100ms.Data[6] = 0x02;
-      txMsg100ms.Data[5] = 0x03;
-      txMsg100ms.Data[4] = 0x04;
-      txMsg100ms.Data[3] = 0x05;
-      txMsg100ms.Data[2] = 0x06;
-      txMsg100ms.Data[1] = 0x07;
-      txMsg100ms.Data[0] = 0x08;
-
-      osMessageQueuePut(appCan1TxQueueHandle, &txMsg100ms, 0, 0);
-    }
-
-    if(current_tick - last_1000ms_tick >= interval_1000ms)
-    {
-      last_1000ms_tick = current_tick;
-      
-      // Здесь можно добавить специальное сообщение для 1000 мс интервала
-      CAN_Msg_t txMsg1000ms = {0};
-      txMsg1000ms.Extended = 1;
-      txMsg1000ms.ID = 0x18FEFF04; // Другой ID для 1000 мс сообщения
-      txMsg1000ms.Length = 8;
-      txMsg1000ms.Data[7] = 0x01;
-      txMsg1000ms.Data[6] = 0x02;
-      txMsg1000ms.Data[5] = 0x03;
-      txMsg1000ms.Data[4] = 0x04;
-      txMsg1000ms.Data[3] = 0x05;
-      txMsg1000ms.Data[2] = 0x06;
-      txMsg1000ms.Data[1] = 0x07;
-      txMsg1000ms.Data[0] = 0x08;
-
-      osMessageQueuePut(appCan1TxQueueHandle, &txMsg1000ms, 0, 0);
-      osMessageQueuePut(appCan2TxQueueHandle, &txMsg1000ms, 0, 0);
-    }
 
     /* Жёсткая периодичность 10 мс */
     tick += interval_10ms;
@@ -370,10 +301,40 @@ void StartAppTask(void *argument)
 void StartCanXcpTask(void *argument)
 {
   /* USER CODE BEGIN StartCanXcpTask */
+  CAN_Msg_t rxMsg;
+  const uint32_t interval10ms = MS_TO_TICKS(10);
+  const uint32_t interval100ms = MS_TO_TICKS(100);
+  uint32_t tick10ms = osKernelGetTickCount();
+  uint32_t tick100ms = tick10ms;
+  uint32_t messageCount = 0;
+  const uint32_t maxMessagesPerCycle = 50; // Максимальное количество сообщений за цикл
+
+  XcpInit();
+
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    // Обработка сообщений с ограничением количества
+    messageCount = 0;
+    while((osMessageQueueGet(xcpCanRxQueueHandle, &rxMsg, NULL, 0) == osOK) && 
+          (messageCount < maxMessagesPerCycle))
+    {
+      XcpMessageHandler(&rxMsg);
+      messageCount++;
+    }
+    
+    // 10ms события
+    XcpEvent(XcpEventChannel_10msEvent_1);
+    
+    // 100ms события (каждый 10-й вызов)
+    if((tick10ms - tick100ms) >= interval100ms)
+    {
+      XcpEvent(XcpEventChannel_100msEvent_1);
+      tick100ms = tick10ms;
+    }
+    
+    tick10ms += interval10ms;
+    osDelayUntil(tick10ms);
   }
   /* USER CODE END StartCanXcpTask */
 }
@@ -437,10 +398,12 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     if (hcan == &hcan1)
     {
         ProcessCanToQueue(hcan, CAN_RX_FIFO0, appCan1RxQueueHandle);
+        can1Stats.rxCount++;
     }
     else if (hcan == &hcan2)
     {
         ProcessCanToQueue(hcan, CAN_RX_FIFO0, appCan2RxQueueHandle);
+        can2Stats.rxCount++;
     }
 }
 
@@ -451,10 +414,12 @@ void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan)
     if (hcan == &hcan1)
     {
         ProcessCanToQueue(hcan, CAN_RX_FIFO1, xcpCanRxQueueHandle);
+        can1Stats.rxCount++;
     }
     else if (hcan == &hcan2)
     {
         ProcessCanToQueue(hcan, CAN_RX_FIFO1, appCan2RxQueueHandle);
+        can2Stats.rxCount++;
     }
 }
 
@@ -464,11 +429,11 @@ void HAL_CAN_TxMailboxCompleteCallback(CAN_HandleTypeDef *hcan, uint32_t TxMailb
 {
   if (hcan == &hcan1) 
   {
-    can1Stats.sentCount++;
+    can1Stats.txCount++;
   }
   if (hcan == &hcan2) 
   {
-    can2Stats.sentCount++;
+    can2Stats.txCount++;
   }
   
 }

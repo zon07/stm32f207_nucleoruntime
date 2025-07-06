@@ -3,9 +3,9 @@
  *
  * Code generated for Simulink model 'stm32f207_template_app'.
  *
- * Model version                  : 1.536
+ * Model version                  : 1.590
  * Simulink Coder version         : 23.2 (R2023b) 01-Aug-2023
- * C/C++ source code generated on : Wed Jul  2 00:01:11 2025
+ * C/C++ source code generated on : Sun Jul  6 13:54:50 2025
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: ARM Compatible->ARM Cortex-M

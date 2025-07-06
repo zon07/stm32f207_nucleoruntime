@@ -48,7 +48,23 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 )
 
 
-# Add sources to executable
+# Рекурсивно находим все .c файлы в SimulinkApp и подпапках
+file(GLOB_RECURSE SIMULINK_SOURCES 
+    "./SimulinkApp/*.c"
+)
+
+# Рекурсивно находим все .h файлы для добавления include директорий
+file(GLOB_RECURSE SIMULINK_HEADERS 
+    "./SimulinkApp/*.h"
+)
+
+# Получаем уникальные директории из списка заголовочных файлов
+foreach(HEADER ${SIMULINK_HEADERS})
+    get_filename_component(DIR ${HEADER} DIRECTORY)
+    list(APPEND SIMULINK_INCLUDE_DIRS ${DIR})
+endforeach()
+list(REMOVE_DUPLICATES SIMULINK_INCLUDE_DIRS)
+
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     ./Xcp/XcpApplication.c
@@ -56,20 +72,18 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ./Xcp/XcpPort.c
     # Добавляем исходники CMSIS-DSP
     ${CMSIS_DSP_SOURCES}
-    ./SimulinkApp/codeGen/stm32f207_template_app_ert_rtw/simulink_app.c
-    ./SimulinkApp/codeGen/stm32f207_template_app_ert_rtw/stm32f207_template_app.c
-    ./SimulinkApp/otherFiles/led_control.c
+    # Добавляем все найденные исходники Simulink
+    ${SIMULINK_SOURCES}
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     ./Xcp/
-        # Добавляем путь к PrivateInclude CMSIS-DSP
+    # Добавляем путь к PrivateInclude CMSIS-DSP
     ./Drivers/CMSIS/DSP/Include
-    ./SimulinkApp/codeGen/stm32f207_template_app_ert_rtw
-    ./SimulinkApp/codeGen/slprj/ert/_sharedutils
-    ./SimulinkApp/otherFiles
+    # Добавляем все найденные include директории Simulink
+    ${SIMULINK_INCLUDE_DIRS}
 )
 
 # Add project symbols (macros)
